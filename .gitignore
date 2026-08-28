@@ -1,0 +1,10 @@
+# 빌드 산출물
+*.exe
+*.pdb
+icon_preview.png
+
+# 편집기 / OS
+.vs/
+*.user
+Thumbs.db
+desktop.ini
