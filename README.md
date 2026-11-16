@@ -11,6 +11,15 @@
 
 ![다크 모드 · 노랑](docs/screenshot-main.png)
 
+## 다운로드
+
+[Releases](https://github.com/jaehyun13/AudioSwitcher/releases/latest)에서 받으세요.
+
+- **AudioSwitcher-Setup.exe**: 설치 프로그램 (관리자 권한 불필요, 시작 메뉴 · 바탕화면 바로가기, 제거 지원)
+- **AudioSwitcher.exe**: 설치 없이 바로 실행하는 단일 파일
+
+서명되지 않은 파일이라 처음 실행할 때 SmartScreen 경고가 뜰 수 있습니다. `추가 정보` → `실행`을 누르세요.
+
 ## 주요 기능
 
 - **독**: 화면 위쪽에 붙은 막대에서 출력 장치 전환, 볼륨, 마이크 음소거, 프로필을 바로 다룹니다. 왼쪽 점을 끌어 옮길 수 있고, 전체화면 게임 · 영상 중에는 자동으로 숨습니다.
@@ -75,7 +84,7 @@ build.bat
 makensis -INPUTCHARSET UTF8 installer\AudioSwitcher.nsi
 ```
 
-`AudioSwitcher-Setup.exe`가 만들어집니다. 관리자 권한 없이 `%LOCALAPPDATA%\Programs\AudioSwitcher`에 설치되고, 설정 → 앱에서 제거할 수 있습니다.
+`AudioSwitcher-Setup.exe`가 만들어집니다. (GitHub Actions의 **Release** 워크플로를 실행하면 Windows에서 두 파일을 빌드해 Releases에 올립니다.) 관리자 권한 없이 `%LOCALAPPDATA%\Programs\AudioSwitcher`에 설치되고, 설정 → 앱에서 제거할 수 있습니다.
 
 아이콘을 바꾸고 싶다면 `tools/icon_shapes.py`의 모양·색을 고친 뒤 아래를 실행해 `app.ico`를 다시 만들고 빌드하면 됩니다. (Python + Pillow 필요)
 

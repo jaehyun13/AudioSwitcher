@@ -12,7 +12,9 @@ SetCompressor /SOLID lzma
 
 !define APPNAME    "Audio Switcher"
 !define EXENAME    "AudioSwitcher.exe"
-!define VERSION    "1.0.2"
+!ifndef VERSION
+  !define VERSION  "1.0.2"
+!endif
 !define PUBLISHER  "jaehyun13"
 !define UNINSTKEY  "Software\Microsoft\Windows\CurrentVersion\Uninstall\AudioSwitcher"
 !define RUNKEY     "Software\Microsoft\Windows\CurrentVersion\Run"
