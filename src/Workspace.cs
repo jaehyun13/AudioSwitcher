@@ -229,7 +229,7 @@ namespace NeonAudioSwitcher
 
     partial class WorkspaceForm : ChromeForm
     {
-        public const int PageDevices = 0, PageRoutes = 1, PageProfiles = 2, PageSettings = 3;
+        public const int PageDevices = 0, PageRoutes = 1, PageProfiles = 2, PageAuto = 3, PageSettings = 4;
         public const int W = 720, H = 640, SideW = 188;
         const int CX = SideW + 20;              // 내용 시작 x
         const int CW = W - CX - 6 - 22;         // 내용 폭 (스크롤바 자리 제외)
@@ -291,7 +291,7 @@ namespace NeonAudioSwitcher
         {
             base.OnVisibleChanged(e);
             if (Visible) ShowPage(page);
-            else { S.Save(); DisposeGroups(); }
+            else { S.Save(); DisposeGroups(); StartMeter(false); }
         }
 
         // 테마가 바뀌면 전부 새로 그림
@@ -355,10 +355,11 @@ namespace NeonAudioSwitcher
             side.MouseDown += BeginDrag;
             Controls.Add(side);
 
-            string[] names = { "장치", "앱별 출력", "프로필", "설정" };
-            int[] icons = { 0, 5, 4, 7 };
+            string[] names = { "장치", "앱별 출력", "프로필", "자동화", "설정" };
+            int[] icons = { 0, 5, 4, 8, 7 };
             string[] counts = { null, S.Routes.Count > 0 ? S.Routes.Count.ToString() : null,
-                                S.Profiles.Count > 0 ? S.Profiles.Count.ToString() : null, null };
+                                S.Profiles.Count > 0 ? S.Profiles.Count.ToString() : null,
+                                S.Triggers.Count > 0 ? S.Triggers.Count.ToString() : null, null };
             for (int i = 0; i < names.Length; i++)
             {
                 var n = new NavItem(names[i], icons[i]);
@@ -372,13 +373,13 @@ namespace NeonAudioSwitcher
                 navs.Add(n);
             }
 
-            int py = 66 + 4 * 48 + 22;
+            int py = 66 + names.Length * 48 + 18;
             var lab = new SectionLabel("프로필");
             lab.BackColor = UI.Side;
             lab.Bounds = new Rectangle(24, py, SideW - 40, 22);
             side.Controls.Add(lab);
             py += 26;
-            foreach (var p in S.Profiles.Take(6))
+            foreach (var p in S.Profiles.Take(5))
             {
                 var prof = p;
                 var l = new ProfileLink(p.Name);
@@ -412,7 +413,9 @@ namespace NeonAudioSwitcher
             if (p == PageDevices) BuildDevices();
             else if (p == PageRoutes) BuildRoutes();
             else if (p == PageProfiles) BuildProfiles();
-            else { BuildTheme(); BuildDock(); BuildGeneral(); y += 10; BuildHotkeys(); BuildInfo(); }
+            else if (p == PageAuto) BuildAuto();
+            else { BuildTheme(); BuildDock(); BuildGeneral(); BuildOverlay(); BuildDeviceManager(); y += 10; BuildHotkeys(); BuildInfo(); }
+            StartMeter(p == PageDevices && Visible);
             var spacer = new Control();
             spacer.Bounds = new Rectangle(0, y, 1, 16);
             Add(spacer);
@@ -432,6 +435,10 @@ namespace NeonAudioSwitcher
             Section("마이크", cm.IsEmpty ? null : cm + " 로 다음 마이크");
             DeviceGrid(shell.MicDevices, false);
             micSlider = VolumeSlider(3, shell.MicDevices);
+            micLevel = new LevelBar();
+            micLevel.Bounds = new Rectangle(34, y - 4, CW - 34 - 50, 10);
+            Add(micLevel);
+            y += 10;
             y += 14;
 
             DisposeGroups();
@@ -468,7 +475,11 @@ namespace NeonAudioSwitcher
                 c.Device = d;
                 c.KeyHint = output && S.DirectMods != 0 && i < 8 ? Hotkey.ModsText(S.DirectMods) + (i + 1) : null;
                 c.Bounds = new Rectangle((i % cols) * (w + gap), y + (i / cols) * (96 + gap), w, 96);
-                c.Click += delegate { shell.SwitchTo(d); };
+                c.MouseUp += delegate(object s, MouseEventArgs e)
+                {
+                    if (e.Button == MouseButtons.Left) shell.SwitchTo(d);
+                    else if (e.Button == MouseButtons.Right) DeviceMenu(d, c, e.Location);
+                };
                 Add(c);
             }
             y += ((devs.Count + cols - 1) / cols) * (96 + gap) + 2;

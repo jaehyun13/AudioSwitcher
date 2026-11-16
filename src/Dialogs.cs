@@ -83,8 +83,14 @@ namespace NeonAudioSwitcher
         public bool WithMic { get { return chkMic == null || chkMic.Checked; } }
         public bool WithVolume { get { return chkVol == null || chkVol.Checked; } }
 
+        bool allowEmpty;
+
         public ProfileDialog(string title, string initial, bool options, string note)
+            : this(title, initial, options, note, false) { }
+
+        public ProfileDialog(string title, string initial, bool options, string note, bool allowEmpty)
         {
+            this.allowEmpty = allowEmpty;
             Text = title;
             StartPosition = FormStartPosition.CenterParent;
             ShowInTaskbar = false;
@@ -153,7 +159,7 @@ namespace NeonAudioSwitcher
 
         void Confirm()
         {
-            if (ProfileName.Length == 0) { name.Box.Focus(); return; }
+            if (ProfileName.Length == 0 && !allowEmpty) { name.Box.Focus(); return; }
             DialogResult = DialogResult.OK;
         }
 

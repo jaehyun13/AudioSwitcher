@@ -111,6 +111,24 @@ namespace NeonAudioSwitcher
         public Hotkey Key = new Hotkey();
     }
 
+    // 장치별로 기억하는 것 (이름 바꾸기 · 숨기기 · 최대 볼륨 · 마지막 볼륨)
+    class DeviceInfo
+    {
+        public string Id;
+        public string Name;          // 마지막으로 본 원래 이름
+        public string Alias;         // 사용자가 붙인 이름 (없으면 null)
+        public bool Hidden;
+        public float MaxVol = -1f;   // < 0 = 제한 없음
+        public float LastVol = -1f;  // 마지막으로 쓰던 볼륨
+    }
+
+    // 이 프로그램이 실행되면 이 프로필 적용
+    class AppTrigger
+    {
+        public string ExePath;
+        public string ProfileName;
+    }
+
     class AppRoute
     {
         public string ExePath;
@@ -171,6 +189,36 @@ namespace NeonAudioSwitcher
         public Dictionary<string, Hotkey> Keys = new Dictionary<string, Hotkey>();
         public List<Profile> Profiles = new List<Profile>();
         public List<AppRoute> Routes = new List<AppRoute>();
+        public List<AppTrigger> Triggers = new List<AppTrigger>();
+        public bool TriggerRestore = true;          // 앱이 꺼지면 원래 장치로
+        public bool AutoSwitch = false;             // 장치 연결/해제 시 우선순위대로 자동 전환
+        public List<string> OutPriority = new List<string>();
+        public List<string> MicPriority = new List<string>();
+        public bool RememberVolume = true;          // 장치별 볼륨 기억 (다시 연결되면 복원)
+        public bool MicOverlay = true;              // 마이크 꺼짐 표시
+        public int MicOverlayPos = 0;               // 0 오른쪽 아래 · 1 오른쪽 위 · 2 왼쪽 아래 · 3 왼쪽 위
+        public Dictionary<string, DeviceInfo> Devices = new Dictionary<string, DeviceInfo>();
+
+        public static readonly string[] CornerNames = { "오른쪽 아래", "오른쪽 위", "왼쪽 아래", "왼쪽 위" };
+
+        public DeviceInfo Dev(string id)
+        {
+            DeviceInfo d;
+            if (!Devices.TryGetValue(id, out d)) { d = new DeviceInfo(); d.Id = id; Devices[id] = d; }
+            return d;
+        }
+
+        public DeviceInfo DevIfAny(string id)
+        {
+            DeviceInfo d;
+            return id != null && Devices.TryGetValue(id, out d) ? d : null;
+        }
+
+        public Profile ProfileNamed(string name)
+        {
+            foreach (var p in Profiles) if (p.Name == name) return p;
+            return null;
+        }
 
         public static readonly string[] ToastPosNames = { "오른쪽 아래", "오른쪽 위", "가운데 아래", "가운데 위" };
 
@@ -209,6 +257,12 @@ namespace NeonAudioSwitcher
         }
         static string Esc(string s) { return s == null ? "" : s.Replace("\r", " ").Replace("\n", " "); }
         static string Opt(string s) { return string.IsNullOrEmpty(s) ? null : s; }
+        static List<string> SplitIds(string v)
+        {
+            var l = new List<string>();
+            foreach (var x in v.Split(';')) if (x.Trim().Length > 0) l.Add(x.Trim());
+            return l;
+        }
 
         public void Save()
         {
@@ -226,6 +280,13 @@ namespace NeonAudioSwitcher
                 sb.AppendLine("showDock=" + (ShowDock ? 1 : 0));
                 sb.AppendLine("hideDockFullscreen=" + (HideDockFullscreen ? 1 : 0));
                 if (DockX != int.MinValue) { sb.AppendLine("dockX=" + DockX); sb.AppendLine("dockY=" + DockY); }
+                sb.AppendLine("triggerRestore=" + (TriggerRestore ? 1 : 0));
+                sb.AppendLine("autoSwitch=" + (AutoSwitch ? 1 : 0));
+                sb.AppendLine("outPriority=" + string.Join(";", OutPriority.ToArray()));
+                sb.AppendLine("micPriority=" + string.Join(";", MicPriority.ToArray()));
+                sb.AppendLine("rememberVolume=" + (RememberVolume ? 1 : 0));
+                sb.AppendLine("micOverlay=" + (MicOverlay ? 1 : 0));
+                sb.AppendLine("micOverlayPos=" + MicOverlayPos);
                 sb.AppendLine();
                 sb.AppendLine("[hotkeys]");
                 foreach (var kv in Keys) sb.AppendLine(kv.Key + "=" + kv.Value.Serialize());
@@ -241,6 +302,24 @@ namespace NeonAudioSwitcher
                     sb.AppendLine("outVol=" + F(p.OutVol));
                     sb.AppendLine("micVol=" + F(p.MicVol));
                     sb.AppendLine("key=" + p.Key.Serialize());
+                }
+                foreach (var t in Triggers)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("[trigger]");
+                    sb.AppendLine("exe=" + Esc(t.ExePath));
+                    sb.AppendLine("profile=" + Esc(t.ProfileName));
+                }
+                foreach (var d in Devices.Values)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("[device]");
+                    sb.AppendLine("id=" + Esc(d.Id));
+                    sb.AppendLine("name=" + Esc(d.Name));
+                    if (!string.IsNullOrEmpty(d.Alias)) sb.AppendLine("alias=" + Esc(d.Alias));
+                    if (d.Hidden) sb.AppendLine("hidden=1");
+                    if (d.MaxVol >= 0) sb.AppendLine("maxVol=" + F(d.MaxVol));
+                    if (d.LastVol >= 0) sb.AppendLine("lastVol=" + F(d.LastVol));
                 }
                 foreach (var r in Routes)
                 {
@@ -268,6 +347,8 @@ namespace NeonAudioSwitcher
                 string section = "";
                 Profile prof = null;
                 AppRoute route = null;
+                AppTrigger trig = null;
+                DeviceInfo dev = null;
                 foreach (var raw in File.ReadAllLines(FilePath, Encoding.UTF8))
                 {
                     string line = raw.Trim();
@@ -275,9 +356,11 @@ namespace NeonAudioSwitcher
                     if (line.StartsWith("[") && line.EndsWith("]"))
                     {
                         section = line.Substring(1, line.Length - 2);
-                        prof = null; route = null;
+                        prof = null; route = null; trig = null; dev = null;
                         if (section == "profile") { prof = new Profile(); s.Profiles.Add(prof); }
                         else if (section == "route") { route = new AppRoute(); s.Routes.Add(route); }
+                        else if (section == "trigger") { trig = new AppTrigger(); s.Triggers.Add(trig); }
+                        else if (section == "device") dev = new DeviceInfo();
                         continue;
                     }
                     int eq = line.IndexOf('=');
@@ -297,6 +380,13 @@ namespace NeonAudioSwitcher
                         else if (k == "hideDockFullscreen") s.HideDockFullscreen = v == "1";
                         else if (k == "dockX") int.TryParse(v, out s.DockX);
                         else if (k == "dockY") int.TryParse(v, out s.DockY);
+                        else if (k == "triggerRestore") s.TriggerRestore = v == "1";
+                        else if (k == "autoSwitch") s.AutoSwitch = v == "1";
+                        else if (k == "outPriority") s.OutPriority = SplitIds(v);
+                        else if (k == "micPriority") s.MicPriority = SplitIds(v);
+                        else if (k == "rememberVolume") s.RememberVolume = v == "1";
+                        else if (k == "micOverlay") s.MicOverlay = v == "1";
+                        else if (k == "micOverlayPos") int.TryParse(v, out s.MicOverlayPos);
                     }
                     else if (section == "hotkeys") s.Keys[k] = Hotkey.Parse(v);
                     else if (prof != null)
@@ -310,6 +400,20 @@ namespace NeonAudioSwitcher
                         else if (k == "micVol") prof.MicVol = PF(v);
                         else if (k == "key") prof.Key = Hotkey.Parse(v);
                     }
+                    else if (trig != null)
+                    {
+                        if (k == "exe") trig.ExePath = v;
+                        else if (k == "profile") trig.ProfileName = v;
+                    }
+                    else if (dev != null)
+                    {
+                        if (k == "id") { dev.Id = v; if (v.Length > 0) s.Devices[v] = dev; }
+                        else if (k == "name") dev.Name = v;
+                        else if (k == "alias") dev.Alias = Opt(v);
+                        else if (k == "hidden") dev.Hidden = v == "1";
+                        else if (k == "maxVol") dev.MaxVol = PF(v);
+                        else if (k == "lastVol") dev.LastVol = PF(v);
+                    }
                     else if (route != null)
                     {
                         if (k == "exe") route.ExePath = v;
@@ -318,6 +422,8 @@ namespace NeonAudioSwitcher
                     }
                 }
                 s.Routes.RemoveAll(r => string.IsNullOrEmpty(r.ExePath) || string.IsNullOrEmpty(r.DeviceId));
+                s.Triggers.RemoveAll(t => string.IsNullOrEmpty(t.ExePath));
+                if (s.MicOverlayPos < 0 || s.MicOverlayPos > 3) s.MicOverlayPos = 0;
                 if (s.ToastPos < 0 || s.ToastPos > 3) s.ToastPos = 0;
                 if (s.ThemeCombo < 0 || s.ThemeCombo >= Themes.Names.Length) s.ThemeCombo = 0;
                 if (s.ThemeMode < 0 || s.ThemeMode > 2) s.ThemeMode = 0;

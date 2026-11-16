@@ -116,7 +116,7 @@ namespace NeonAudioSwitcher
         }
     }
 
-    class Shell : ChromeForm
+    partial class Shell : ChromeForm
     {
         public const int DockW = 720, DockH = 64;
         const int WM_HOTKEY = 0x0312;
@@ -171,9 +171,12 @@ namespace NeonAudioSwitcher
             pollTimer.Tick += delegate
             {
                 RefreshDevices(false);
+                CheckTriggers();
                 if (++pollCount % 2 == 0) AppRouting.Maintain(S.Routes);
+                if (pollCount % 5 == 0 && volDirty) { volDirty = false; S.Save(); }
             };
             pollTimer.Start();
+            StartAutomation();
 
             fsTimer = new Timer();
             fsTimer.Interval = 1000;
@@ -494,10 +497,20 @@ namespace NeonAudioSwitcher
         // ───────────── 장치 목록 ─────────────
         public void RefreshDevices(bool force)
         {
-            var outs = AudioManager.GetDevices(EDataFlow.eRender);
-            var mics = AudioManager.GetDevices(EDataFlow.eCapture);
+            var rawOuts = AudioManager.GetDevices(EDataFlow.eRender);
+            var rawMics = AudioManager.GetDevices(EDataFlow.eCapture);
+            // 장치가 새로 연결되거나 빠졌으면 자동 전환 · 볼륨 복원 (기본 장치가 바뀌면 다시 읽음)
+            if (HandleConnectionChanges(rawOuts, rawMics))
+            {
+                rawOuts = AudioManager.GetDevices(EDataFlow.eRender);
+                rawMics = AudioManager.GetDevices(EDataFlow.eCapture);
+            }
+            RawOut = rawOuts;
+            RawMic = rawMics;
+            var outs = Present(rawOuts);
+            var mics = Present(rawMics);
             string sig = string.Join("|", outs.Concat(mics).Select(d =>
-                d.Id + (d.IsDefault ? "*" : "") + (d.IsDefaultComm ? "+" : "")).ToArray());
+                d.Id + d.Name + (d.IsDefault ? "*" : "") + (d.IsDefaultComm ? "+" : "")).ToArray());
             if (force || sig != lastSig)
             {
                 lastSig = sig;
@@ -543,6 +556,8 @@ namespace NeonAudioSwitcher
                 if (micBtn.Muted != muted) { micBtn.Muted = muted; micBtn.Invalidate(); }
             }
             if (work != null && !work.IsDisposed && work.Visible) work.SyncVolumes();
+            RememberVolumes(o, m);
+            UpdateMicOverlay(m != null && AudioManager.GetMute(m.Id));
         }
 
         public bool OwnsHotkey(Hotkey k)
@@ -672,7 +687,7 @@ namespace NeonAudioSwitcher
             var done = new List<string>();
             if (p.OutId != null)
             {
-                var d = OutDevices.Find(x => x.Id == p.OutId);
+                var d = RawOut.Find(x => x.Id == p.OutId);
                 if (d == null) missing.Add(p.OutName ?? "출력 장치");
                 else
                 {
@@ -683,7 +698,7 @@ namespace NeonAudioSwitcher
             }
             if (p.MicId != null)
             {
-                var d = MicDevices.Find(x => x.Id == p.MicId);
+                var d = RawMic.Find(x => x.Id == p.MicId);
                 if (d == null) missing.Add(p.MicName ?? "마이크");
                 else
                 {
@@ -696,7 +711,9 @@ namespace NeonAudioSwitcher
             string detail = missing.Count > 0
                 ? "연결 안 됨: " + string.Join(", ", missing.ToArray())
                 : string.Join("  ·  ", done.ToArray());
-            Notify(missing.Count > 0 && done.Count == 0 ? "프로필을 적용하지 못했어요" : "프로필 적용", p.Name, 4, detail);
+            string title = profileTitle ?? "프로필 적용";
+            profileTitle = null;
+            Notify(missing.Count > 0 && done.Count == 0 ? "프로필을 적용하지 못했어요" : title, p.Name, 4, detail);
         }
 
         // 현재 기본 장치/볼륨을 프로필에 담음

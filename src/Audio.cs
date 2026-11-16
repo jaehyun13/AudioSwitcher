@@ -14,6 +14,7 @@ namespace NeonAudioSwitcher
     {
         public string Id;
         public string Name;
+        public string RawName;   // 장치 원래 이름 (Name 은 사용자가 바꾼 이름일 수 있음)
         public bool IsDefault;
         public bool IsDefaultComm;
         public int Kind; // 0=스피커 1=헤드셋 2=이어폰 3=마이크
@@ -93,6 +94,7 @@ namespace NeonAudioSwitcher
                     var d = new AudioDevice();
                     d.Id = id;
                     d.Name = name;
+                    d.RawName = name;
                     d.IsDefault = (id == defId);
                     d.IsDefaultComm = (id == commId);
                     d.Kind = flow == EDataFlow.eCapture ? 3 : KindOf(name);

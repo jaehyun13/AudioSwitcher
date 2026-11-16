@@ -207,6 +207,13 @@ namespace NeonAudioSwitcher
                     for (int i = 0; i < 4; i++) g.FillRectangle(br, cx - 6 + i * 4, cy - 3, 2, 2);
                     g.DrawLine(pen, cx - 4, cy + 3, cx + 4, cy + 3);
                 }
+                else if (kind == 8) // 번개 (자동화)
+                {
+                    Point[] bolt = {
+                        new Point(cx + 2, cy - 10), new Point(cx - 6, cy + 1), new Point(cx, cy + 1),
+                        new Point(cx - 2, cy + 10), new Point(cx + 6, cy - 1), new Point(cx, cy - 1) };
+                    g.DrawPolygon(pen, bolt);
+                }
                 else if (kind == 7) // 슬라이더 (일반 설정)
                 {
                     g.DrawLine(pen, cx - 8, cy - 5, cx + 8, cy - 5);
