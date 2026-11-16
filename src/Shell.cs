@@ -405,7 +405,15 @@ namespace NeonAudioSwitcher
         {
             tray = new NotifyIcon();
             Icon exeIcon = null;
-            try { exeIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
+            // 트레이는 16px 전용 그림을 쓰도록 exe 안의 app.ico에서 작은 크기를 직접 고른다
+            try
+            {
+                using (var st = typeof(Shell).Assembly.GetManifestResourceStream("app.ico"))
+                    if (st != null) exeIcon = new Icon(st, SystemInformation.SmallIconSize);
+            }
+            catch { }
+            if (exeIcon == null)
+                try { exeIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             tray.Icon = exeIcon ?? MakeIcon();
             tray.Text = "Audio Switcher";
             tray.Visible = true;
