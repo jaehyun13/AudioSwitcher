@@ -1,0 +1,54 @@
+# Windows에서 AudioSwitcher.exe와 설치 프로그램을 빌드해 GitHub Releases에 올린다.
+# Actions 탭 → Release → Run workflow 에서 버전(예: 1.0.2)을 넣어 실행.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "버전 (예: 1.0.2)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build AudioSwitcher.exe
+        shell: cmd
+        run: >
+          C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /target:winexe /optimize+ /codepage:65001
+          /win32icon:app.ico /out:AudioSwitcher.exe
+          /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Core.dll
+          /resource:app.ico,app.ico
+          /resource:fonts\SUIT-Regular.ttf,SUIT-Regular.ttf
+          /resource:fonts\SUIT-Bold.ttf,SUIT-Bold.ttf
+          src\*.cs
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $nsis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+          if (-not (Test-Path $nsis)) { choco install nsis -y --no-progress; }
+          & $nsis -INPUTCHARSET UTF8 "-DVERSION=${{ inputs.version }}" installer\AudioSwitcher.nsi
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          name: Audio Switcher ${{ inputs.version }}
+          target_commitish: ${{ github.sha }}
+          body: |
+            ### 다운로드
+            - **AudioSwitcher-Setup.exe** — 설치 프로그램 (관리자 권한 불필요, 시작 메뉴 · 바탕화면 바로가기, 제거 지원)
+            - **AudioSwitcher.exe** — 설치 없이 바로 실행하는 단일 파일
+
+            서명되지 않은 파일이라 처음 실행할 때 SmartScreen 경고가 뜰 수 있습니다. `추가 정보` → `실행`을 누르세요.
+          files: |
+            AudioSwitcher-Setup.exe
+            AudioSwitcher.exe
