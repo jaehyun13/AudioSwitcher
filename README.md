@@ -83,6 +83,8 @@ makensis -INPUTCHARSET UTF8 installer\AudioSwitcher.nsi
 csc MakeIcon.cs && MakeIcon.exe
 ```
 
+**글꼴**: 화면 글꼴 [SUIT](https://sun.fo/suit)(SIL Open Font License 1.1)는 `fonts/` 폴더의 파일을 exe 안에 넣어 쓰므로, PC에 따로 설치하지 않아도 같은 글꼴로 보입니다. 라이선스 전문은 `fonts/SUIT-OFL.txt`에 있습니다.
+
 **요구 사항**: Windows 7 이상(앱별 출력 장치는 Windows 10 1803 이상), .NET Framework 4.x (윈도우 기본 설치)
 
 ## 소스 구성
@@ -99,6 +101,7 @@ csc MakeIcon.cs && MakeIcon.exe
 | `src/Dialogs.cs` | 카드 · 탭 항목 · 프로필 이름 입력 창 |
 | `src/Toast.cs` | 전환 알림 |
 | `src/Theme.cs` | 색 · 글꼴 · 직접 그린 컨트롤들 |
+| `src/Fonts.cs` | exe에 넣어 둔 글꼴(SUIT) 불러오기 |
 | `src/Audio.cs` | 장치 열거, 기본 장치 변경, 볼륨, 앱별 세션 |
 | `src/Routing.cs` | 앱별 출력 장치 지정 |
 | `src/Settings.cs` | 설정 저장/불러오기 |

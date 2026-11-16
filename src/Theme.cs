@@ -54,13 +54,22 @@ namespace NeonAudioSwitcher
         public static Font Pick(float size, FontStyle style, params string[] names)
         {
             foreach (var n in names)
+            {
+                if (n == EmbeddedFonts.Family)
+                {
+                    var fam = EmbeddedFonts.Get();   // exe에 넣어 둔 글꼴
+                    if (fam != null && fam.IsStyleAvailable(style)) return new Font(fam, size, style);
+                    continue;
+                }
                 if (HasFamily(n)) return new Font(n, size, style);
+            }
             return new Font(FontFamily.GenericSansSerif, size, style);
         }
 
         // 한글 문구는 한 서체가 한글·라틴을 모두 그려야 굵기가 어긋나지 않는다
-        const string KR = "Pretendard";
-        const string KR2 = "Noto Sans KR";
+        // SUIT는 exe 안에 들어 있어 어느 PC에서나 같게 보인다 (Fonts.cs)
+        const string KR = EmbeddedFonts.Family;
+        const string KR2 = "Pretendard";
         const string KR3 = "맑은 고딕";
         const string EN = "Segoe UI Semibold";
         const string EN2 = "Segoe UI";
