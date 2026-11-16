@@ -67,6 +67,16 @@ build.bat
 
 `AudioSwitcher.exe` 하나가 만들어집니다. 그대로 실행하면 됩니다.
 
+### 설치 프로그램
+
+시작 메뉴 · 바탕화면 바로가기와 제거 기능이 필요하면 [NSIS](https://nsis.sourceforge.io/)로 설치 프로그램을 만듭니다. `AudioSwitcher.exe`를 먼저 빌드한 뒤 실행하세요.
+
+```cmd
+makensis -INPUTCHARSET UTF8 installer\AudioSwitcher.nsi
+```
+
+`AudioSwitcher-Setup.exe`가 만들어집니다. 관리자 권한 없이 `%LOCALAPPDATA%\Programs\AudioSwitcher`에 설치되고, 설정 → 앱에서 제거할 수 있습니다.
+
 아이콘을 바꾸고 싶다면 `MakeIcon.cs`의 색을 고친 뒤 아래를 실행해 `app.ico`를 다시 만들고 빌드하면 됩니다.
 
 ```cmd
