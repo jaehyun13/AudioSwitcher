@@ -11,21 +11,29 @@ namespace NeonAudioSwitcher
 {
     static class UI
     {
-        // 무채색 바탕에 강조색 하나. 면은 밝기 차이로만 층을 나눈다.
-        public static readonly Color Bg         = Color.FromArgb(16, 17, 21);
-        public static readonly Color Panel      = Color.FromArgb(25, 27, 33);
-        public static readonly Color PanelHover = Color.FromArgb(33, 36, 44);
-        public static readonly Color PanelOn    = Color.FromArgb(28, 34, 52);
-        public static readonly Color Raised     = Color.FromArgb(38, 41, 50);
-        public static readonly Color Accent     = Color.FromArgb(110, 142, 255);
-        public static readonly Color AccentDeep = Color.FromArgb(84, 112, 230);
-        public static readonly Color Text       = Color.FromArgb(237, 239, 244);
-        public static readonly Color Dim        = Color.FromArgb(148, 154, 168);
-        public static readonly Color Faint      = Color.FromArgb(98, 104, 119);
-        public static readonly Color Border     = Color.FromArgb(40, 43, 53);
-        public static readonly Color BorderHi   = Color.FromArgb(58, 62, 75);
-        public static readonly Color Danger     = Color.FromArgb(240, 98, 98);
-        public static readonly Color Warn       = Color.FromArgb(240, 180, 90);
+        // 색은 모두 현재 팔레트에서 읽는다 (설정 → 테마에서 바뀜, Themes.cs)
+        static Palette P = Themes.Get(0, true);
+        public static bool IsDark { get { return P.Dark; } }
+        public static void Use(Palette p) { P = p; }
+
+        public static Color Bg         { get { return P.Win; } }     // 창 바탕
+        public static Color Side       { get { return P.Side; } }    // 사이드바 바탕
+        public static Color Panel      { get { return P.Card; } }    // 카드
+        public static Color Raised     { get { return P.Chip; } }    // 칩 · 입력칸 · 보조 버튼
+        public static Color PanelHover { get { return Mix(P.Chip, P.Text, P.Dark ? 0.06f : 0.04f); } }
+        public static Color PanelOn    { get { return P.Sel; } }     // 선택된 카드
+        public static Color SelLine    { get { return P.SelLine; } }
+        public static Color Accent     { get { return P.Acc; } }     // 강조 채움
+        public static Color Ink        { get { return P.Ink; } }     // 강조색 글자 (바탕 위에서 읽히는)
+        public static Color OnAccent   { get { return P.OnAcc; } }   // 강조 채움 위 글자
+        public static Color Track      { get { return P.Track; } }
+        public static Color Text       { get { return P.Text; } }
+        public static Color Dim        { get { return P.Dim; } }
+        public static Color Faint      { get { return P.Faint; } }
+        public static Color Border     { get { return P.Line; } }
+        public static Color BorderHi   { get { return Mix(P.Line, P.Text, 0.15f); } }
+        public static Color Danger     { get { return P.Dark ? Color.FromArgb(255, 107, 107) : Color.FromArgb(201, 42, 42); } }
+        public static Color Warn       { get { return P.Dark ? Color.FromArgb(255, 192, 90) : Color.FromArgb(166, 98, 0); } }
 
         public static Color Alpha(Color c, int a) { return Color.FromArgb(a, c.R, c.G, c.B); }
 
@@ -148,7 +156,7 @@ namespace NeonAudioSwitcher
             var sz = g.MeasureString(text, BadgeFont, PointF.Empty, StringFormat.GenericTypographic);
             int w = (int)Math.Ceiling(sz.Width) + 14;
             var r = new Rectangle((int)right - w, cy - 10, w, 20);
-            FillRound(g, r, 8, Alpha(Color.White, 8));
+            FillRound(g, r, 8, Raised);
             StrokeRound(g, r, 8, Border, 1f);
             using (var b = new SolidBrush(fg))
                 g.DrawString(text, BadgeFont, b, r.X + 7, cy - sz.Height / 2f, StringFormat.GenericTypographic);
@@ -227,7 +235,7 @@ namespace NeonAudioSwitcher
         public static void DrawIconTile(Graphics g, Rectangle r, int kind, bool on)
         {
             FillRound(g, r, 12, on ? Alpha(Accent, 46) : Raised);
-            DrawKindIcon(g, r, kind, on ? Accent : Dim);
+            DrawKindIcon(g, r, kind, on ? Ink : Dim);
         }
 
         [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
@@ -236,7 +244,7 @@ namespace NeonAudioSwitcher
         // 스크롤바를 어두운 테마로 (Windows 10 1809 이상, 그 외에는 무시됨)
         public static void DarkScrollbars(Control c)
         {
-            EventHandler apply = delegate { try { SetWindowTheme(c.Handle, "DarkMode_Explorer", null); } catch { } };
+            EventHandler apply = delegate { try { SetWindowTheme(c.Handle, IsDark ? "DarkMode_Explorer" : "Explorer", null); } catch { } };
             if (c.IsHandleCreated) apply(c, EventArgs.Empty);
             else c.HandleCreated += apply;
         }
@@ -280,7 +288,13 @@ namespace NeonAudioSwitcher
         {
             base.OnHandleCreated(e);
             try { int v = 2; DwmSetWindowAttribute(Handle, 33, ref v, 4); } catch { }   // Win11 둥근 모서리
-            try { int v = 1; DwmSetWindowAttribute(Handle, 20, ref v, 4); } catch { }   // 다크 모드 힌트
+            ApplyDwmDark();
+        }
+
+        public void ApplyDwmDark()
+        {
+            if (!IsHandleCreated) return;
+            try { int v = UI.IsDark ? 1 : 0; DwmSetWindowAttribute(Handle, 20, ref v, 4); } catch { }   // 다크 모드 힌트
         }
 
         public void BeginDrag(object s, MouseEventArgs e)
@@ -332,7 +346,7 @@ namespace NeonAudioSwitcher
             var g = e.Graphics;
             UI.Smooth(g);
             var r = e.ImageRectangle;
-            using (var p = new Pen(UI.Accent, 2f))
+            using (var p = new Pen(UI.Ink, 2f))
             {
                 p.StartCap = LineCap.Round; p.EndCap = LineCap.Round;
                 g.DrawLines(p, new[] {
@@ -395,64 +409,10 @@ namespace NeonAudioSwitcher
         protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
     }
 
-    // ─────────────── 장치 카드 ───────────────
-    class DeviceRow : FlatControl
-    {
-        public AudioDevice Device;
-        public string Sub = "";        // 단축키 배지
-
-        public DeviceRow() { Cursor = Cursors.Hand; }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            var g = e.Graphics;
-            UI.Smooth(g);
-            var rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            bool on = Device.IsDefault;
-
-            UI.FillRound(g, rect, 14, on ? UI.PanelOn : (hover ? UI.PanelHover : UI.Panel));
-            if (on) UI.StrokeRound(g, rect, 14, UI.Alpha(UI.Accent, 120), 1f);
-
-            UI.DrawIconTile(g, new Rectangle(12, (Height - 34) / 2, 34, 34), Device.Kind, on);
-
-            // 오른쪽: 선택 표시 원 + 단축키 배지
-            int cy = Height / 2;
-            int rx = Width - 30;
-            if (on)
-            {
-                using (var b = new SolidBrush(UI.Accent)) g.FillEllipse(b, rx, cy - 8, 16, 16);
-                using (var p = new Pen(UI.Bg, 2f))
-                {
-                    p.StartCap = LineCap.Round; p.EndCap = LineCap.Round;
-                    g.DrawLines(p, new[] { new Point(rx + 4, cy), new Point(rx + 7, cy + 3), new Point(rx + 12, cy - 3) });
-                }
-            }
-            else
-                using (var p = new Pen(hover ? UI.Faint : UI.BorderHi, 1.5f)) g.DrawEllipse(p, rx, cy - 8, 16, 16);
-
-            float right = rx - 12;
-            if (!string.IsNullOrEmpty(Sub) && (hover || !on))
-                right -= UI.DrawKeyBadge(g, Sub, right, cy, hover ? UI.Dim : UI.Faint) + 10;
-
-            // 이름 + 상태
-            string status;
-            if (on) status = Device.IsDefaultComm ? "사용 중 · 통화 포함" : "사용 중";
-            else if (Device.IsDefaultComm) status = "통화 장치";
-            else status = Device.Flow == EDataFlow.eCapture ? "입력 장치" : "출력 장치";
-
-            var nameRect = new RectangleF(58, cy - 19, Math.Max(40f, right - 58), 20);
-            using (var tb = new SolidBrush(on ? UI.Text : (hover ? UI.Text : UI.Mix(UI.Dim, UI.Text, 0.4f))))
-                g.DrawString(Device.Name, UI.NameFont, tb, nameRect, UI.Ellipsis(StringAlignment.Near));
-            using (var sb = new SolidBrush(on ? UI.Accent : UI.Faint))
-                g.DrawString(status, UI.HintFont, sb, new RectangleF(58, cy + 1, Math.Max(40f, right - 58), 18),
-                             UI.Ellipsis(StringAlignment.Near));
-        }
-    }
-
     // ─────────────── 볼륨 슬라이더 ───────────────
     class NeonSlider : FlatControl
     {
-        public Color Accent = UI.Accent;
+        public Color Accent { get { return UI.Accent; } }
         public int IconKind = 0;
         public Image IconImage;
         float val;
@@ -577,7 +537,7 @@ namespace NeonAudioSwitcher
             int r = (hover || dragging) ? 8 : 6;
             if (hover || dragging)
                 using (var b = new SolidBrush(UI.Alpha(fc, 50))) g.FillEllipse(b, cx - r - 4, Height / 2 - r - 4, (r + 4) * 2, (r + 4) * 2);
-            using (var b = new SolidBrush(Color.White)) g.FillEllipse(b, cx - r, Height / 2 - r, r * 2, r * 2);
+            using (var b = new SolidBrush(UI.IsDark ? UI.Text : Color.White)) g.FillEllipse(b, cx - r, Height / 2 - r, r * 2, r * 2);
             using (var p = new Pen(fc, 2f)) g.DrawEllipse(p, cx - r + 1, Height / 2 - r + 1, r * 2 - 2, r * 2 - 2);
 
             string pct = muted ? "음소거" : string.Format("{0}%", (int)Math.Round(val * 100));
@@ -634,7 +594,7 @@ namespace NeonAudioSwitcher
             Color tc = isChecked ? UI.Accent : (hover ? UI.BorderHi : UI.Raised);
             UI.FillRound(g, track, 18, tc);
             int kx = isChecked ? track.Right - 16 : track.X + 2;
-            using (var b = new SolidBrush(isChecked ? Color.White : UI.Dim))
+            using (var b = new SolidBrush(isChecked ? UI.OnAccent : UI.Dim))
                 g.FillEllipse(b, kx, track.Y + 2, 14, 14);
 
             using (var tb = new SolidBrush(isChecked || hover ? UI.Text : UI.Dim))
@@ -648,7 +608,7 @@ namespace NeonAudioSwitcher
     // ─────────────── 버튼 ───────────────
     class NeonButton : FlatControl
     {
-        public Color Accent = UI.Accent;
+        public Color Accent { get { return UI.Accent; } }
         public bool Primary;
         public bool Danger;
         public string Hint;       // 오른쪽에 옅게 (단축키 등)
@@ -669,8 +629,8 @@ namespace NeonAudioSwitcher
             Color fill, fg, border;
             if (Primary)
             {
-                fill = hover ? UI.Mix(UI.Accent, Color.White, 0.12f) : UI.Accent;
-                fg = Color.White; border = fill;
+                fill = hover ? UI.Mix(UI.Accent, UI.OnAccent, 0.1f) : UI.Accent;
+                fg = UI.OnAccent; border = fill;
             }
             else if (Danger)
             {
@@ -698,7 +658,7 @@ namespace NeonAudioSwitcher
             using (var b = new SolidBrush(fg))
                 g.DrawString(Text, Font, b, x + iconW, (Height - sz.Height) / 2f + 0.5f);
             if (hintW > 0)
-                using (var b = new SolidBrush(Primary ? UI.Alpha(Color.White, 170) : UI.Faint))
+                using (var b = new SolidBrush(Primary ? UI.Alpha(UI.OnAccent, 170) : UI.Faint))
                     g.DrawString(Hint, UI.BadgeFont, b, Width - hintW, (Height - UI.BadgeFont.Height) / 2f);
         }
     }
@@ -747,7 +707,7 @@ namespace NeonAudioSwitcher
                 UI.StrokeRound(g, r, Height, Active ? UI.Alpha(UI.Accent, 170) : (hover ? UI.BorderHi : UI.Border), 1f);
             }
 
-            Color fg = Active ? UI.Text : (Dashed ? (hover ? UI.Accent : UI.Dim) : (hover ? UI.Text : UI.Dim));
+            Color fg = Active ? UI.Text : (Dashed ? (hover ? UI.Ink : UI.Dim) : (hover ? UI.Text : UI.Dim));
             float x = 14;
             if (Active)
             {
@@ -828,7 +788,7 @@ namespace NeonAudioSwitcher
                         Invalidate();
                         if (SelectedChanged != null) SelectedChanged(this, EventArgs.Empty);
                     });
-                if (selected != null && Equals(selected.Value, o.Value)) it.ForeColor = UI.Accent;
+                if (selected != null && Equals(selected.Value, o.Value)) it.ForeColor = UI.Ink;
                 m.Items.Add(it);
             }
             m.MinimumSize = new Size(Width, 0);
@@ -857,7 +817,20 @@ namespace NeonAudioSwitcher
     class HotkeyBox : FlatControl
     {
         Hotkey value = new Hotkey();
-        bool listening;
+        bool listenFlag;
+        // 입력받는 동안에는 이미 등록된 전역 단축키가 가로채지 않도록 앱 쪽에 알린다
+        public static event Action ListenStart, ListenEnd;
+        bool listening
+        {
+            get { return listenFlag; }
+            set
+            {
+                if (listenFlag == value) return;
+                listenFlag = value;
+                var ev = value ? ListenStart : ListenEnd;
+                if (ev != null) ev();
+            }
+        }
         int liveMods;
         public string Warning;        // 충돌 등 (빨간 글씨)
         public event EventHandler ValueChanged;
@@ -957,7 +930,7 @@ namespace NeonAudioSwitcher
             if (listening)
             {
                 t = liveMods != 0 ? Hotkey.ModsText(liveMods) + "…" : "키 조합을 누르세요";
-                fg = UI.Accent;
+                fg = UI.Ink;
             }
             else if (value.IsEmpty) { t = "없음"; fg = UI.Faint; }
             else { t = value.ToString(); fg = UI.Text; }

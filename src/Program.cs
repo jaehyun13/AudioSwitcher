@@ -9,7 +9,7 @@ namespace NeonAudioSwitcher
     static class App
     {
         public static Settings S;
-        public static MainForm Main;
+        public static Shell Shell;
     }
 
     static class Program
@@ -29,8 +29,12 @@ namespace NeonAudioSwitcher
                 Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
 
                 App.S = Settings.Load();
-                App.Main = new MainForm();
-                Application.Run(App.Main);
+                Themes.Apply(App.S, false);
+                App.Shell = new Shell();
+                var h = App.Shell.Handle;       // 독을 숨겨 둬도 단축키가 동작하도록 창 핸들은 만들어 둠
+                App.Shell.ApplyDockVisibility();
+                if (!App.S.ShowDock) App.Shell.OpenPanel(WorkspaceForm.PageDevices);
+                Application.Run(new ApplicationContext());
             }
         }
     }

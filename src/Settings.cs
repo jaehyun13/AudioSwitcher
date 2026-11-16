@@ -136,10 +136,10 @@ namespace NeonAudioSwitcher
             {
                 case CycleOut: return "다음 출력 장치로 전환";
                 case CycleMic: return "다음 마이크로 전환";
-                case Mixer: return "앱별 볼륨 창 열기";
+                case Mixer: return "앱별 볼륨 열기";
                 case MuteOut: return "출력 음소거 켜기/끄기";
                 case MuteMic: return "마이크 음소거 켜기/끄기";
-                case ShowWindow: return "메인 창 열기/숨기기";
+                case ShowWindow: return "패널 펼치기/접기";
             }
             return id;
         }
@@ -163,6 +163,11 @@ namespace NeonAudioSwitcher
         public bool ToastEnabled = true;
         public int ToastPos = 0;           // 0 오른쪽 아래 · 1 오른쪽 위 · 2 가운데 아래 · 3 가운데 위
         public int DirectMods = Hotkey.MOD_CONTROL | Hotkey.MOD_ALT;   // 0 = 번호 단축키 끔
+        public int ThemeCombo = 0;         // Themes.Names 순서
+        public int ThemeMode = 0;          // 0 시스템 따르기 · 1 라이트 · 2 다크
+        public bool ShowDock = true;       // 화면 위쪽 독 표시
+        public bool HideDockFullscreen = true;   // 전체화면 앱(게임 등)일 때 독 숨김
+        public int DockX = int.MinValue, DockY = int.MinValue;   // 독 위치 (없으면 화면 위 가운데)
         public Dictionary<string, Hotkey> Keys = new Dictionary<string, Hotkey>();
         public List<Profile> Profiles = new List<Profile>();
         public List<AppRoute> Routes = new List<AppRoute>();
@@ -216,6 +221,11 @@ namespace NeonAudioSwitcher
                 sb.AppendLine("toast=" + (ToastEnabled ? 1 : 0));
                 sb.AppendLine("toastPos=" + ToastPos);
                 sb.AppendLine("directMods=" + DirectMods);
+                sb.AppendLine("themeCombo=" + ThemeCombo);
+                sb.AppendLine("themeMode=" + ThemeMode);
+                sb.AppendLine("showDock=" + (ShowDock ? 1 : 0));
+                sb.AppendLine("hideDockFullscreen=" + (HideDockFullscreen ? 1 : 0));
+                if (DockX != int.MinValue) { sb.AppendLine("dockX=" + DockX); sb.AppendLine("dockY=" + DockY); }
                 sb.AppendLine();
                 sb.AppendLine("[hotkeys]");
                 foreach (var kv in Keys) sb.AppendLine(kv.Key + "=" + kv.Value.Serialize());
@@ -281,6 +291,12 @@ namespace NeonAudioSwitcher
                         else if (k == "toast") s.ToastEnabled = v == "1";
                         else if (k == "toastPos") int.TryParse(v, out s.ToastPos);
                         else if (k == "directMods") int.TryParse(v, out s.DirectMods);
+                        else if (k == "themeCombo") int.TryParse(v, out s.ThemeCombo);
+                        else if (k == "themeMode") int.TryParse(v, out s.ThemeMode);
+                        else if (k == "showDock") s.ShowDock = v == "1";
+                        else if (k == "hideDockFullscreen") s.HideDockFullscreen = v == "1";
+                        else if (k == "dockX") int.TryParse(v, out s.DockX);
+                        else if (k == "dockY") int.TryParse(v, out s.DockY);
                     }
                     else if (section == "hotkeys") s.Keys[k] = Hotkey.Parse(v);
                     else if (prof != null)
@@ -303,6 +319,8 @@ namespace NeonAudioSwitcher
                 }
                 s.Routes.RemoveAll(r => string.IsNullOrEmpty(r.ExePath) || string.IsNullOrEmpty(r.DeviceId));
                 if (s.ToastPos < 0 || s.ToastPos > 3) s.ToastPos = 0;
+                if (s.ThemeCombo < 0 || s.ThemeCombo >= Themes.Names.Length) s.ThemeCombo = 0;
+                if (s.ThemeMode < 0 || s.ThemeMode > 2) s.ThemeMode = 0;
             }
             catch { }
             return s;

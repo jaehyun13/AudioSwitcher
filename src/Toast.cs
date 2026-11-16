@@ -159,7 +159,7 @@ namespace NeonAudioSwitcher
             int tile = 40;
             var tr = new Rectangle(16, (Height - tile) / 2, tile, tile);
             UI.FillRound(g, tr, 14, UI.Alpha(UI.Accent, 46));
-            UI.DrawKindIcon(g, tr, kind, UI.Accent);
+            UI.DrawKindIcon(g, tr, kind, UI.Ink);
 
             int x = tr.Right + 14;
             int top = string.IsNullOrEmpty(detail) ? 15 : 14;
