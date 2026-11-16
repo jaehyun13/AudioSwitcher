@@ -8,3 +8,4 @@ icon_preview.png
 *.user
 Thumbs.db
 desktop.ini
+__pycache__/
